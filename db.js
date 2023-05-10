@@ -5,8 +5,7 @@
 import { promisify } from 'util'
 
 import dayjs from 'dayjs'
-import mapKeys from 'lodash.mapkeys'
-import camelCase from 'lodash.camelcase'
+import { mapKeys, camelCase } from 'lodash-es'
 import pg from 'pg'
 import Cursor from 'pg-cursor'
 // USE THIS LIBRARY TO WRITE SQL QUERIES.
