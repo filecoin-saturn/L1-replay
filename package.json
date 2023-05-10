@@ -1,0 +1,25 @@
+{
+  "name": "benchmark",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dayjs": "^1.11.7",
+    "lodash-es": "^4.17.21",
+    "lodash.camelcase": "^4.3.0",
+    "lodash.mapkeys": "^4.6.0",
+    "minimist": "^1.2.8",
+    "node-fetch": "^3.3.1",
+    "percentile": "^1.6.0",
+    "pg": "^8.10.0",
+    "pg-cursor": "^2.9.0",
+    "sql-template-strings": "^2.2.2"
+  }
+}
