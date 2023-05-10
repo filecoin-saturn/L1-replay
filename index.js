@@ -14,14 +14,14 @@ import { sendRequestHttp1, sendRequestHttp2 } from './http.js'
 BigInt.prototype.toJSON = function() { return Number(this) }
 global.cl = console.log
 
-const logFile = './logs/logs.ndjson'
+const LOG_FILE = './logs/logs.ndjson'
 const resultsFile = './results.json'
 
 async function getLogs (sinceMinutes) {
     db.init()
 
     const res = await db.getCabooseRequests(sinceMinutes)
-    const wstream = fs.createWriteStream(logFile)
+    const wstream = fs.createWriteStream(LOG_FILE)
     for (const row of res) {
         wstream.write(JSON.stringify(row) + '\n')
     }
@@ -29,14 +29,15 @@ async function getLogs (sinceMinutes) {
 }
 
 // Get logs with past timestamps modified into future timestamps
-async function getModifiedLogs (ipAddress, maxDurationMinutes) {
+async function getModifiedLogs (logFilePath, ipAddress, maxDurationMinutes, maxLogs) {
     // Logs should be ordered by timestamp asc
     const rl = readline.createInterface({
-        input: fs.createReadStream(logFile)
+        input: fs.createReadStream(logFilePath)
     });
     const logs = []
     let oldestTimestamp = null
     let offset = null
+    let count = 0
 
     for await (const line of rl) {
         const log = JSON.parse(line)
@@ -64,7 +65,10 @@ async function getModifiedLogs (ipAddress, maxDurationMinutes) {
             if (durationMinutesSoFar > maxDurationMinutes) {
                 break
             }
+        } else if (maxLogs && count > maxLogs) {
+            break
         }
+        count++
     }
 
     return logs
@@ -85,7 +89,7 @@ async function replayLogs (logs, httpVersion) {
                 cl(i, `${progress}%`, JSON.stringify(result))
             })
         } else {
-            await setTimeout(0)
+            await setTimeout(0) // wait for next log
         }
     }
 
@@ -113,8 +117,8 @@ function calcPercentiles (results) {
     return percentiles
 }
 
-async function replay (ipAddress, maxDurationMinutes, httpVersion) {
-    const logs = await getModifiedLogs(ipAddress, maxDurationMinutes)
+async function replay ({ logFilePath, ipAddress, maxDurationMinutes, maxLogs, httpVersion }) {
+    const logs = await getModifiedLogs(logFilePath, ipAddress, maxDurationMinutes, maxLogs)
     const results = await replayLogs(logs, httpVersion)
     const percentiles = calcPercentiles(results)
 
@@ -125,6 +129,8 @@ async function replay (ipAddress, maxDurationMinutes, httpVersion) {
     const info = {
         ipAddress,
         httpVersion,
+        date: new Date(),
+        numLogs: logs.length,
         percentiles
     }
 
@@ -139,10 +145,12 @@ async function main () {
         const sinceMinutes = argv.since ?? 10
         await getLogs(sinceMinutes)
     } else if (cmd[0] === 'replay') {
-        const maxDurationMinutes = argv.d
-        const ipAddress = argv.ip
+        const logFilePath = argv.f ?? LOG_FILE
+        const maxDurationMinutes = argv.d // Limit logs in the range (oldestTimestamp, oldestTimestamp + maxDurationMinutes)
+        const maxLogs = argv.n
+        const ipAddress = argv.ip // L1 node ip address
         const httpVersion = argv.http ?? 1 // 1 or 2
-        await replay(ipAddress, maxDurationMinutes, httpVersion)
+        await replay({ logFilePath, ipAddress, maxDurationMinutes, maxLogs, httpVersion })
     }
 }
 
