@@ -40,6 +40,10 @@ async function getModifiedLogs (logFilePath, ipAddress, maxDurationMinutes, maxL
 
     for await (const line of rl) {
         const log = JSON.parse(line)
+        if (!log.format) {
+            continue
+        }
+
         log.url = new URL(log.url)
         const timestamp = new Date(log.startTime)
 
@@ -97,7 +101,6 @@ async function replayLogs (logs, httpVersion) {
 }
 
 function calcMetrics (results) {
-    results = results.filter(d => d.status === 200)
     const metrics = []
     const groups = lodash.groupBy(results, d => `${d.status}_${d.format}_${d.cacheHit}`)
 
@@ -105,7 +108,7 @@ function calcMetrics (results) {
         const [status, format, cacheHit] = key.split('_')
         const [p50, p90, p95, p99] = percentile([50, 90, 95, 99], values.map(d => d.ttfb))
         metrics.push({
-            status,
+            status: Number(status),
             format,
             cacheHit,
             ttfb_ms: {p50, p90, p95, p99},

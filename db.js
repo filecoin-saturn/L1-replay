@@ -78,7 +78,7 @@ export async function getCabooseRequests (sinceMinutes) {
             and node_id = 'a6a3592c-7f1a-41f5-9293-11d6b5647e5e'
             and user_agent = 'bifrost-staging-ny/'
             and log_sender = 'bifrost-gateway'
-            order by start_time asc
+            order by start_time
         `
 
     const res = await readPool.query(query)
