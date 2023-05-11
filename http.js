@@ -72,6 +72,8 @@ export async function sendRequestHttp2 (log) {
     const timeout = 1000 * 60
     setTimeout(timeout).then(() => controller.abort())
 
+    const backupTimeout = setTimeout(timeout).then(() => Promise.reject(new Error("Backup timeout")))
+
     const client = http2.connect(url.origin, { servername: L1S_HOST });
     const req = client.request(
         {
@@ -91,7 +93,7 @@ export async function sendRequestHttp2 (log) {
     };
 
     try {
-        const [headers] = await Promise.race([once(req, "response"), errHandler()]);
+        const [headers] = await Promise.race([once(req, "response"), errHandler(), backupTimeout]);
         status = headers[":status"];
         cacheHit = headers['saturn-cache-status'] === 'HIT'
 
