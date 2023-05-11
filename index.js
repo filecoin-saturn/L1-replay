@@ -93,12 +93,11 @@ async function replayLogs (logs, httpVersion) {
         }
     }
 
-    const results = await Promise.all(promises)
-
-    return results
+    return await Promise.all(promises)
 }
 
 function calcPercentiles (results) {
+    results = results.filter(d => d.status === 200)
     const percentiles = []
     const groups = lodash.groupBy(results, d => `${d.status}_${d.format}_${d.cacheHit}`)
 
