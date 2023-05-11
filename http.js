@@ -12,6 +12,16 @@ const httpsAgent = new https.Agent({
     servername: L1S_HOST,
 })
 
+function acceptHeader (format) {
+    if (format === 'car') {
+        return 'application/vnd.ipld.car'
+    } else if (format === 'raw') {
+        return 'application/vnd.ipld.raw'
+    } else {
+        return null
+    }
+}
+
 export async function sendRequestHttp1 (log) {
     const start = Date.now()
     let ttfb = null
@@ -26,7 +36,10 @@ export async function sendRequestHttp1 (log) {
     try {
         const res = await fetch(log.url,
             {
-                headers: { host: L1S_HOST },
+                headers: {
+                    host: L1S_HOST,
+                    accept: acceptHeader(log.format)
+                },
                 agent,
                 signal: controller.signal
             },
@@ -63,6 +76,7 @@ export async function sendRequestHttp2 (log) {
     const req = client.request(
         {
             ":path": url.pathname + url.search,
+            accept: acceptHeader(log.format),
             host: L1S_HOST,
         },
         {
