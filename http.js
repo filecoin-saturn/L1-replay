@@ -1,4 +1,5 @@
 import { once } from "node:events";
+import http from "node:http";
 import https from "node:https"
 import http2 from "node:http2"
 import { setTimeout } from 'node:timers/promises'
@@ -6,6 +7,7 @@ import { setTimeout } from 'node:timers/promises'
 import fetch from 'node-fetch'
 
 const L1S_HOST = 'l1s.strn.pl'
+const httpAgent = new http.Agent()
 const httpsAgent = new https.Agent({
     servername: L1S_HOST,
 })
@@ -17,6 +19,7 @@ export async function sendRequestHttp1 (log) {
     let requestErr = null
     let status = 0
 
+    const agent = log.url.protocol === 'https:' ? httpsAgent : httpAgent
     const controller = new AbortController();
     setTimeout(1000 * 60).then(() => controller.abort())
 
@@ -24,7 +27,7 @@ export async function sendRequestHttp1 (log) {
         const res = await fetch(log.url,
             {
                 headers: { host: L1S_HOST },
-                agent: httpsAgent,
+                agent,
                 signal: controller.signal
             },
         )
@@ -38,7 +41,7 @@ export async function sendRequestHttp1 (log) {
             }
         }
     } catch (err) {
-        requestErr = err.name + ' ' + err.message
+        requestErr = err.name + ': ' + err.message
     }
 
     return {ttfb, cacheHit, status, format: log.format, requestErr}
@@ -85,7 +88,7 @@ export async function sendRequestHttp2 (log) {
             }
         }
     } catch (err) {
-        requestErr = err.name + ' ' + err.message
+        requestErr = err.name + ': ' + err.message
     }
 
     return {ttfb, cacheHit, status, format: log.format, requestErr}

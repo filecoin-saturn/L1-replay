@@ -29,7 +29,7 @@ async function getLogs (sinceMinutes) {
 }
 
 // Get logs with past timestamps modified into future timestamps
-async function getModifiedLogs (logFilePath, ipAddress, maxDurationMinutes, maxLogs) {
+async function getModifiedLogs (logFilePath, ipAddress, maxDurationMinutes, maxLogs, useTLS) {
     // Logs should be ordered by timestamp asc
     const rl = readline.createInterface({
         input: fs.createReadStream(logFilePath)
@@ -41,6 +41,7 @@ async function getModifiedLogs (logFilePath, ipAddress, maxDurationMinutes, maxL
 
     for await (const line of rl) {
         const log = JSON.parse(line)
+        log.url = new URL(log.url)
         const timestamp = new Date(log.startTime)
 
         // Get current timestamp offset from first/oldest log and add this
@@ -53,10 +54,9 @@ async function getModifiedLogs (logFilePath, ipAddress, maxDurationMinutes, maxL
         log.startTime = new Date(timestamp.getTime() + offset)
 
         if (ipAddress) {
-            const url = new URL(log.url)
-            url.hostname = ipAddress
-            log.url = url
+            log.url.hostname = ipAddress
         }
+        log.url.protocol = useTLS ? 'https:' : 'http:'
 
         logs.push(log)
 
@@ -117,8 +117,8 @@ function calcPercentiles (results) {
     return percentiles
 }
 
-async function replay ({ logFilePath, ipAddress, maxDurationMinutes, maxLogs, httpVersion }) {
-    const logs = await getModifiedLogs(logFilePath, ipAddress, maxDurationMinutes, maxLogs)
+async function replay ({ logFilePath, ipAddress, maxDurationMinutes, maxLogs, httpVersion, useTLS }) {
+    const logs = await getModifiedLogs(logFilePath, ipAddress, maxDurationMinutes, maxLogs, useTLS)
     const results = await replayLogs(logs, httpVersion)
     const percentiles = calcPercentiles(results)
 
@@ -150,7 +150,9 @@ async function main () {
         const maxLogs = argv.n
         const ipAddress = argv.ip // L1 node ip address
         const httpVersion = argv.http ?? 1 // 1 or 2
-        await replay({ logFilePath, ipAddress, maxDurationMinutes, maxLogs, httpVersion })
+        const useTLS = argv.tls ?? true // note: http2 breaks if useTLS is false
+
+        await replay({ logFilePath, ipAddress, maxDurationMinutes, maxLogs, httpVersion, useTLS })
     }
 }
 
