@@ -14,8 +14,7 @@ import { sendRequestHttp1, sendRequestHttp2 } from './http.js'
 BigInt.prototype.toJSON = function() { return Number(this) }
 global.cl = console.log
 
-const LOG_FILE = './logs/logs.ndjson'
-const resultsFile = './results.json'
+const LOG_FILE = 'logs/logs.ndjson'
 
 async function getLogs (sinceMinutes) {
     db.init()
@@ -65,7 +64,8 @@ async function getModifiedLogs (logFilePath, ipAddress, maxDurationMinutes, maxL
             if (durationMinutesSoFar > maxDurationMinutes) {
                 break
             }
-        } else if (maxLogs && count > maxLogs) {
+        }
+        if (maxLogs && count > maxLogs) {
             break
         }
         count++
@@ -96,30 +96,31 @@ async function replayLogs (logs, httpVersion) {
     return await Promise.all(promises)
 }
 
-function calcPercentiles (results) {
+function calcMetrics (results) {
     results = results.filter(d => d.status === 200)
-    const percentiles = []
+    const metrics = []
     const groups = lodash.groupBy(results, d => `${d.status}_${d.format}_${d.cacheHit}`)
 
     for (const [key, values] of Object.entries(groups)) {
         const [status, format, cacheHit] = key.split('_')
-        percentiles.push({
+        const [p50, p90, p95, p99] = percentile([50, 90, 95, 99], values.map(d => d.ttfb))
+        metrics.push({
             status,
             format,
             cacheHit,
-            percentiles: percentile([50, 90, 95, 99], values.map(d => d.ttfb)),
-            count: values.length
+            ttfb_ms: {p50, p90, p95, p99},
+            numLogs: values.length
         })
     }
-    percentiles.sort((a, b) => b.count - a.count)
+    metrics.sort((a, b) => b.numLogs - a.numLogs)
 
-    return percentiles
+    return metrics
 }
 
 async function replay ({ logFilePath, ipAddress, maxDurationMinutes, maxLogs, httpVersion, useTLS }) {
     const logs = await getModifiedLogs(logFilePath, ipAddress, maxDurationMinutes, maxLogs, useTLS)
     const results = await replayLogs(logs, httpVersion)
-    const percentiles = calcPercentiles(results)
+    const metrics = calcMetrics(results)
 
     if (!ipAddress) {
         ipAddress = (new URL(logs[0].url)).hostname
@@ -130,10 +131,10 @@ async function replay ({ logFilePath, ipAddress, maxDurationMinutes, maxLogs, ht
         httpVersion,
         date: new Date(),
         numLogs: logs.length,
-        percentiles
+        metrics
     }
 
-    await fsp.writeFile(resultsFile, JSON.stringify(info, null, 2))
+    await fsp.writeFile(`results_${Date.now()}.json`, JSON.stringify(info, null, 2))
 }
 
 async function main () {
